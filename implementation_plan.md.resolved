@@ -1,0 +1,224 @@
+# Create Base Infrastructure for `base_infra` Repository
+
+Implement the **infra-platform** layer from [Infrastructure Design_solo.md](file:///Users/surachai/dev/base_infra/Infrastructure%20Design_solo.md) — the shared infrastructure that creates Docker networks, runs data stores (PostgreSQL, Redis), reverse proxy (NGINX), and observability stack (Prometheus, Grafana, Loki, **Promtail**, Jaeger). Application repos (`chat-api`, `rag-service`) are **out of scope** — they will join these networks as `external: true` later.
+
+## User Review Required
+
+> [!IMPORTANT]
+> **Scope**: This plan creates only the **infra-platform** layer. The `chat-api` and `rag-service` repos are separate and not included.
+
+> [!IMPORTANT]
+> **SSL/TLS**: NGINX will be configured for HTTP only initially. SSL termination (Let's Encrypt / certbot) can be added when deploying to a real server. The config includes a placeholder `server` block ready for HTTPS upgrade.
+
+> [!IMPORTANT]
+> **Promtail added**: The original design doc suggested using the Loki Docker log driver (no Promtail container). Per your request, we're adding **Promtail** as a dedicated log collector instead. Promtail mounts the Docker socket to auto-discover containers and ships logs to Loki with labels (container name, compose service, etc.).
+
+---
+
+## Proposed Changes
+
+### Directory Structure (Final)
+
+```
+base_infra/
+├── docker-compose.yml
+├── .env.example
+├── .gitignore
+├── Makefile
+├── README.md
+├── nginx/
+│   ├── nginx.conf
+│   └── conf.d/
+│       ├── upstreams.conf
+│       └── routes.conf
+├── postgres/
+│   ├── init.sql
+│   └── pg_hba.conf
+├── prometheus/
+│   └── prometheus.yml
+├── loki/
+│   └── loki-config.yml
+├── promtail/
+│   └── promtail-config.yml
+├── grafana/
+│   └── provisioning/
+│       └── datasources/
+│           └── datasources.yml
+├── scripts/
+│   ├── backup.sh
+│   └── healthcheck.sh
+└── Infrastructure Design_solo.md   # (existing)
+```
+
+---
+
+### Core Compose & Environment
+
+#### [NEW] [docker-compose.yml](file:///Users/surachai/dev/base_infra/docker-compose.yml)
+
+- Creates 2 Docker networks: `frontend-net`, `internal-net`
+- 8 services: **nginx**, **postgres** (16 + pgvector), **redis** (7), **prometheus**, **grafana**, **loki**, **promtail**, **jaeger**
+- Resource limits per design (tuned for 4 vCPU / 8 GB)
+- Health checks for postgres, redis, nginx
+- Named volumes for persistent data (`pg_data`, `redis_data`, `prometheus_data`, `grafana_data`, `loki_data`, `promtail_positions`)
+- Startup dependency order: postgres + redis → nginx; loki → grafana
+- NGINX starts and returns 502/503 until app backends are up (by design)
+
+#### [NEW] [.env.example](file:///Users/surachai/dev/base_infra/.env.example)
+
+- All required environment variables with placeholder values
+- `POSTGRES_PASSWORD`, `CHAT_DB_PASSWORD`, `RAG_DB_PASSWORD`, `REDIS_PASSWORD`
+- `GF_SECURITY_ADMIN_PASSWORD`, `GF_SERVER_ROOT_URL`
+
+#### [NEW] [.gitignore](file:///Users/surachai/dev/base_infra/.gitignore)
+
+- Ignore `.env`, backup files, volumes, OS files
+
+---
+
+### NGINX (Reverse Proxy)
+
+#### [NEW] [nginx.conf](file:///Users/surachai/dev/base_infra/nginx/nginx.conf)
+
+- Main nginx config with worker processes, logging, gzip
+- Includes `conf.d/*.conf`
+
+#### [NEW] [upstreams.conf](file:///Users/surachai/dev/base_infra/nginx/conf.d/upstreams.conf)
+
+- Upstream blocks for `chat-api:8000` and `rag-api:8001`
+
+#### [NEW] [routes.conf](file:///Users/surachai/dev/base_infra/nginx/conf.d/routes.conf)
+
+- HTTP server block on port 80
+- Route `/api/chat/` → chat-api upstream
+- Route `/api/rag/` → rag-api upstream
+- Health endpoint at `/nginx-health`
+- `proxy_next_upstream` for graceful handling when app backends aren't up yet
+
+---
+
+### PostgreSQL
+
+#### [NEW] [init.sql](file:///Users/surachai/dev/base_infra/postgres/init.sql)
+
+- Creates `chat_app` and `rag_app` roles with password variables
+- Grants `CREATEDB` privilege so apps can manage their own schemas/migrations
+- Installs `pgvector` extension
+- **No schemas created** — each application manages its own schema lifecycle
+
+#### [NEW] [pg_hba.conf](file:///Users/surachai/dev/base_infra/postgres/pg_hba.conf)
+
+- `scram-sha-256` auth for all network connections
+- Trust for local Unix socket (used by health checks)
+
+---
+
+### Observability — Prometheus
+
+#### [NEW] [prometheus.yml](file:///Users/surachai/dev/base_infra/prometheus/prometheus.yml)
+
+- Global scrape interval: 15s
+- Scrape targets: `chat-api:8000/metrics`, `rag-api:8001/metrics`
+- Self-monitoring: `prometheus:9090/metrics`
+
+---
+
+### Observability — Loki
+
+#### [NEW] [loki-config.yml](file:///Users/surachai/dev/base_infra/loki/loki-config.yml)
+
+- Single-process mode (appropriate for solo)
+- BoltDB Shipper for index, filesystem for chunks
+- Retention: 7 days
+- Listen on `:3100`
+
+---
+
+### Observability — Grafana
+
+#### [NEW] [datasources.yml](file:///Users/surachai/dev/base_infra/grafana/provisioning/datasources/datasources.yml)
+
+- Prometheus datasource → `http://prometheus:9090`
+- Loki datasource → `http://loki:3100`
+
+> [!NOTE]
+> **Dashboards and alerting** are deferred — add them when you have real traffic patterns to monitor.
+
+---
+
+### Observability — Promtail
+
+#### [NEW] [promtail-config.yml](file:///Users/surachai/dev/base_infra/promtail/promtail-config.yml)
+
+- Server on `:9080` (HTTP) and `:0` (gRPC disabled)
+- Positions file for tracking read offsets
+- `docker_sd_configs` to auto-discover containers via Docker socket
+- Relabeling: extracts `container_name`, `compose_service`, `compose_project` as Loki labels
+- Pushes logs to `http://loki:3100/loki/api/v1/push`
+
+---
+
+### Scripts
+
+#### [NEW] [backup.sh](file:///Users/surachai/dev/base_infra/scripts/backup.sh)
+
+- `pg_dumpall` via docker compose exec
+- Gzip compression, 7-day retention
+- Exactly as specified in design doc
+
+#### [NEW] [healthcheck.sh](file:///Users/surachai/dev/base_infra/scripts/healthcheck.sh)
+
+- Checks all infra services are running and healthy
+- Checks postgres and redis connectivity
+- Checks NGINX, Grafana, Prometheus, Jaeger HTTP endpoints
+
+---
+
+### Project Files
+
+#### [NEW] [Makefile](file:///Users/surachai/dev/base_infra/Makefile)
+
+- `up`, `down`, `logs`, `status`, `backup`, `db-shell`, `health`
+- No `deploy-all` at this stage
+
+#### [NEW] [README.md](file:///Users/surachai/dev/base_infra/README.md)
+
+- Quick start guide
+- Prerequisites (Docker, Docker Compose)
+- Network architecture overview
+- Promtail log collection architecture explanation
+- Port map table
+- Daily ops checklist reference
+- Links to design doc
+
+---
+
+## Verification Plan
+
+### Automated Tests
+
+1. **Docker Compose syntax validation**:
+   ```bash
+   cd /Users/surachai/dev/base_infra && docker compose config --quiet
+   ```
+   Should exit 0 with no errors (after copying `.env.example` to `.env`).
+
+2. **Shell script lint**:
+   ```bash
+   shellcheck scripts/backup.sh scripts/healthcheck.sh
+   ```
+
+3. **NGINX config test** (requires NGINX image):
+   ```bash
+   docker run --rm -v $(pwd)/nginx:/etc/nginx:ro nginx:1.25-alpine nginx -t
+   ```
+
+### Manual Verification
+
+1. **File structure check**: Run `find . -type f | sort` and compare against the directory structure above.
+2. **Full stack startup** (optional — requires app repos to be running):
+   - Copy `.env.example` to `.env`, fill passwords
+   - `docker compose up -d`
+   - Verify postgres, redis, prometheus, grafana, loki, jaeger are healthy
+   - NGINX will return 502 for `/api/chat/` and `/api/rag/` (expected — no app backends yet)
+   - Grafana accessible at `:3000`, Jaeger at `:16686`, Prometheus at `:9090`

@@ -1,0 +1,461 @@
+{
+    "uid": "nginx-overview",
+    "title": "NGINX Overview",
+    "tags": [
+        "nginx",
+        "infrastructure"
+    ],
+    "timezone": "browser",
+    "schemaVersion": 38,
+    "refresh": "30s",
+    "time": {
+        "from": "now-1h",
+        "to": "now"
+    },
+    "panels": [
+        {
+            "id": 1,
+            "title": "Total HTTP Requests",
+            "type": "stat",
+            "gridPos": {
+                "x": 0,
+                "y": 0,
+                "w": 6,
+                "h": 4
+            },
+            "datasource": {
+                "type": "prometheus",
+                "uid": "PBFA97CFB590B2093"
+            },
+            "options": {
+                "colorMode": "value",
+                "graphMode": "area",
+                "textMode": "auto",
+                "reduceOptions": {
+                    "calcs": [
+                        "lastNotNull"
+                    ]
+                }
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "mode": "thresholds"
+                    },
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": null
+                            }
+                        ]
+                    }
+                }
+            },
+            "targets": [
+                {
+                    "expr": "nginx_http_requests_total{instance=\"nginx\"}",
+                    "legendFormat": "Total Requests",
+                    "refId": "A"
+                }
+            ]
+        },
+        {
+            "id": 2,
+            "title": "Active Connections",
+            "type": "stat",
+            "gridPos": {
+                "x": 6,
+                "y": 0,
+                "w": 6,
+                "h": 4
+            },
+            "datasource": {
+                "type": "prometheus",
+                "uid": "PBFA97CFB590B2093"
+            },
+            "options": {
+                "colorMode": "value",
+                "graphMode": "none",
+                "textMode": "auto",
+                "reduceOptions": {
+                    "calcs": [
+                        "lastNotNull"
+                    ]
+                }
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "mode": "thresholds"
+                    },
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": null
+                            },
+                            {
+                                "color": "yellow",
+                                "value": 100
+                            },
+                            {
+                                "color": "red",
+                                "value": 500
+                            }
+                        ]
+                    }
+                }
+            },
+            "targets": [
+                {
+                    "expr": "nginx_connections_active{instance=\"nginx\"}",
+                    "legendFormat": "Active",
+                    "refId": "A"
+                }
+            ]
+        },
+        {
+            "id": 3,
+            "title": "Waiting Connections",
+            "type": "stat",
+            "gridPos": {
+                "x": 12,
+                "y": 0,
+                "w": 6,
+                "h": 4
+            },
+            "datasource": {
+                "type": "prometheus",
+                "uid": "PBFA97CFB590B2093"
+            },
+            "options": {
+                "colorMode": "value",
+                "graphMode": "none",
+                "textMode": "auto",
+                "reduceOptions": {
+                    "calcs": [
+                        "lastNotNull"
+                    ]
+                }
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "mode": "fixed",
+                        "fixedColor": "blue"
+                    }
+                }
+            },
+            "targets": [
+                {
+                    "expr": "nginx_connections_waiting{instance=\"nginx\"}",
+                    "legendFormat": "Waiting",
+                    "refId": "A"
+                }
+            ]
+        },
+        {
+            "id": 4,
+            "title": "NGINX Up",
+            "type": "stat",
+            "gridPos": {
+                "x": 18,
+                "y": 0,
+                "w": 6,
+                "h": 4
+            },
+            "datasource": {
+                "type": "prometheus",
+                "uid": "PBFA97CFB590B2093"
+            },
+            "options": {
+                "colorMode": "background",
+                "graphMode": "none",
+                "textMode": "auto",
+                "reduceOptions": {
+                    "calcs": [
+                        "lastNotNull"
+                    ]
+                }
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "mappings": [
+                        {
+                            "type": "value",
+                            "options": {
+                                "1": {
+                                    "text": "UP",
+                                    "color": "green"
+                                }
+                            }
+                        },
+                        {
+                            "type": "value",
+                            "options": {
+                                "0": {
+                                    "text": "DOWN",
+                                    "color": "red"
+                                }
+                            }
+                        }
+                    ],
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "red",
+                                "value": null
+                            },
+                            {
+                                "color": "green",
+                                "value": 1
+                            }
+                        ]
+                    }
+                }
+            },
+            "targets": [
+                {
+                    "expr": "nginx_up{instance=\"nginx\"}",
+                    "legendFormat": "Status",
+                    "refId": "A"
+                }
+            ]
+        },
+        {
+            "id": 5,
+            "title": "Request Rate (per second)",
+            "type": "timeseries",
+            "gridPos": {
+                "x": 0,
+                "y": 4,
+                "w": 24,
+                "h": 8
+            },
+            "datasource": {
+                "type": "prometheus",
+                "uid": "PBFA97CFB590B2093"
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "mode": "palette-classic"
+                    },
+                    "unit": "reqps",
+                    "custom": {
+                        "lineWidth": 2,
+                        "fillOpacity": 10
+                    }
+                }
+            },
+            "targets": [
+                {
+                    "expr": "rate(nginx_http_requests_total{instance=\"nginx\"}[1m])",
+                    "legendFormat": "Requests/s",
+                    "refId": "A"
+                }
+            ]
+        },
+        {
+            "id": 6,
+            "title": "Connections Overview",
+            "type": "timeseries",
+            "gridPos": {
+                "x": 0,
+                "y": 12,
+                "w": 12,
+                "h": 8
+            },
+            "datasource": {
+                "type": "prometheus",
+                "uid": "PBFA97CFB590B2093"
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "mode": "palette-classic"
+                    },
+                    "custom": {
+                        "lineWidth": 2,
+                        "fillOpacity": 10
+                    }
+                }
+            },
+            "targets": [
+                {
+                    "expr": "nginx_connections_active{instance=\"nginx\"}",
+                    "legendFormat": "Active",
+                    "refId": "A"
+                },
+                {
+                    "expr": "nginx_connections_waiting{instance=\"nginx\"}",
+                    "legendFormat": "Waiting",
+                    "refId": "B"
+                },
+                {
+                    "expr": "nginx_connections_reading{instance=\"nginx\"}",
+                    "legendFormat": "Reading",
+                    "refId": "C"
+                },
+                {
+                    "expr": "nginx_connections_writing{instance=\"nginx\"}",
+                    "legendFormat": "Writing",
+                    "refId": "D"
+                }
+            ]
+        },
+        {
+            "id": 7,
+            "title": "Handled vs Accepted Connections",
+            "type": "timeseries",
+            "gridPos": {
+                "x": 12,
+                "y": 12,
+                "w": 12,
+                "h": 8
+            },
+            "datasource": {
+                "type": "prometheus",
+                "uid": "PBFA97CFB590B2093"
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "mode": "palette-classic"
+                    },
+                    "unit": "cps",
+                    "custom": {
+                        "lineWidth": 2,
+                        "fillOpacity": 10
+                    }
+                }
+            },
+            "targets": [
+                {
+                    "expr": "rate(nginx_connections_accepted{instance=\"nginx\"}[1m])",
+                    "legendFormat": "Accepted/s",
+                    "refId": "A"
+                },
+                {
+                    "expr": "rate(nginx_connections_handled{instance=\"nginx\"}[1m])",
+                    "legendFormat": "Handled/s",
+                    "refId": "B"
+                }
+            ]
+        },
+        {
+            "id": 8,
+            "title": "Status Codes (from Loki logs)",
+            "type": "timeseries",
+            "gridPos": {
+                "x": 0,
+                "y": 20,
+                "w": 12,
+                "h": 8
+            },
+            "datasource": {
+                "type": "loki",
+                "uid": "P8E80F9AEF21F6940"
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "mode": "palette-classic"
+                    },
+                    "unit": "reqps",
+                    "custom": {
+                        "lineWidth": 2,
+                        "fillOpacity": 10
+                    }
+                }
+            },
+            "targets": [
+                {
+                    "expr": "sum by (status) (rate({container=\"nginx\"} | json | status != \"\" [1m]))",
+                    "legendFormat": "{{status}}",
+                    "refId": "A"
+                }
+            ]
+        },
+        {
+            "id": 9,
+            "title": "Request Latency (seconds)",
+            "type": "timeseries",
+            "gridPos": {
+                "x": 12,
+                "y": 20,
+                "w": 12,
+                "h": 8
+            },
+            "datasource": {
+                "type": "loki",
+                "uid": "P8E80F9AEF21F6940"
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "mode": "palette-classic"
+                    },
+                    "unit": "s",
+                    "custom": {
+                        "lineWidth": 2,
+                        "fillOpacity": 10
+                    }
+                }
+            },
+            "targets": [
+                {
+                    "expr": "avg_over_time({container=\"nginx\"} | json | unwrap request_time | __error__=\"\" [1m])",
+                    "legendFormat": "Avg Latency",
+                    "refId": "A"
+                }
+            ]
+        },
+        {
+            "id": 10,
+            "title": "NGINX Access Logs (live)",
+            "type": "logs",
+            "gridPos": {
+                "x": 0,
+                "y": 28,
+                "w": 24,
+                "h": 10
+            },
+            "datasource": {
+                "type": "loki",
+                "uid": "P8E80F9AEF21F6940"
+            },
+            "options": {
+                "dedupStrategy": "none",
+                "enableLogDetails": true,
+                "showTime": true,
+                "wrapLogMessage": false
+            },
+            "targets": [
+                {
+                    "expr": "{container=\"nginx\"}",
+                    "legendFormat": "",
+                    "refId": "A"
+                }
+            ]
+        }
+    ],
+    "__requires": [
+        {
+            "type": "datasource",
+            "id": "prometheus",
+            "name": "Prometheus",
+            "version": "1.0.0"
+        },
+        {
+            "type": "datasource",
+            "id": "loki",
+            "name": "Loki",
+            "version": "1.0.0"
+        }
+    ]
+}
