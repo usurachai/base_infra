@@ -1,6 +1,9 @@
 # base_infra (Infrastructure Platform)
 
-This repository contains the foundational infrastructure layer for the solo-founder architecture. It creates shared Docker networks, data stores, a reverse proxy, and an observability stack. Application repositories like `chat-api` and `rag-service` join these networks as `external: true`.
+[![GitHub Repository](https://img.shields.io/badge/GitHub-usurachai/base_infra-blue?logo=github)](https://github.com/usurachai/base_infra)
+
+This repository contains the foundational infrastructure layer for the solo-founder architecture. It is **initialized and ready for use**. It provides shared Docker networks, data stores, a reverse proxy, and a full observability stack. Application repositories like `chat-api` and `rag-service` join these networks as `external: true`.
+
 
 ## Architecture Overview
 
