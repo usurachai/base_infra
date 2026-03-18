@@ -50,9 +50,8 @@ services:
     environment:
       POSTGRES_USER: admin
       POSTGRES_PASSWORD: ${POSTGRES_ADMIN_PASSWORD}
-      CHAT_DB_PASSWORD: ${CHAT_DB_PASSWORD}
-      RAG_DB_PASSWORD: ${RAG_DB_PASSWORD}
-      ZENDESK_DB_PASSWORD: ${ZENDESK_DB_PASSWORD}
+      ZENCONNECT_DB_PASSWORD: ${ZENCONNECT_DB_PASSWORD}
+      MEOWRAG_DB_PASSWORD: ${MEOWRAG_DB_PASSWORD}
       # Allows non-localhost login but pg_hba.conf still enforces scram-sha-256
     volumes:
       - pg_data:/var/lib/postgresql/data
