@@ -1,0 +1,38 @@
+groups:
+  - name: base_infra
+    rules:
+      - alert: PostgresDown
+        expr: up{job="postgres"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "PostgreSQL is down"
+          description: "PostgreSQL has been unreachable for more than 1 minute."
+
+      - alert: RedisDown
+        expr: up{job="redis"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Redis is down"
+          description: "Redis has been unreachable for more than 1 minute."
+
+      - alert: DiskUsageHigh
+        expr: node_filesystem_avail_bytes / node_filesystem_size_bytes < 0.15
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Disk usage above 85%"
+          description: "Available disk space is below 15% on {{ $labels.mountpoint }}."
+
+      - alert: NginxHighErrorRate
+        expr: rate(nginx_http_requests_total{status=~"5.."}[5m]) > 0.1
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High NGINX 5xx error rate"
+          description: "NGINX is returning 5xx errors at {{ $value | humanize }} req/s."
