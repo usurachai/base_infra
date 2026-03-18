@@ -12,18 +12,12 @@ services:
     container_name: nginx
     ports:
       - "80:80"
-      - "443:443"
     volumes:
       - ./nginx/nginx.conf:/usr/local/openresty/nginx/conf/nginx.conf:ro
       - ./nginx/conf.d:/usr/local/openresty/nginx/conf/conf.d:ro
     networks:
       - frontend-net
       - internal-net
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
     deploy:
       resources:
         limits: { cpus: "0.5", memory: "128M" }
