@@ -77,7 +77,11 @@ services:
     ports:
       - "127.0.0.1:6379:6379"
     command: >
-      --requirepass ${REDIS_PASSWORD} --maxmemory 512mb --maxmemory-policy allkeys-lru
+      --requirepass ${REDIS_PASSWORD}
+      --maxmemory 512mb
+      --maxmemory-policy allkeys-lru
+      --appendonly yes
+      --appendfsync everysec
     volumes:
       - redis_data:/data
     networks:
@@ -99,6 +103,7 @@ services:
     container_name: prometheus
     volumes:
       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./prometheus/alerts.yml:/etc/prometheus/alerts.yml:ro
       - prometheus_data:/prometheus
     command:
       - "--config.file=/etc/prometheus/prometheus.yml"
@@ -115,6 +120,11 @@ services:
       resources:
         limits: { cpus: "0.5", memory: "512M" }
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:9090/-/healthy"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
 
   loki:
     image: grafana/loki:3.0.0
@@ -128,6 +138,11 @@ services:
       resources:
         limits: { cpus: "0.5", memory: "512M" }
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3100/ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
 
   promtail:
     image: grafana/promtail:3.0.0
@@ -163,8 +178,10 @@ services:
     networks:
       - internal-net
     depends_on:
-      - prometheus
-      - loki
+      prometheus:
+        condition: service_healthy
+      loki:
+        condition: service_healthy
     deploy:
       resources:
         limits: { cpus: "0.5", memory: "256M" }
@@ -176,7 +193,12 @@ services:
     container_name: jaeger
     environment:
       - COLLECTOR_OTLP_ENABLED=true
-      - MEMORY_MAX_TRACES=10000
+      - SPAN_STORAGE_TYPE=badger
+      - BADGER_EPHEMERAL=false
+      - BADGER_DIRECTORY_VALUE=/badger/data
+      - BADGER_DIRECTORY_KEY=/badger/key
+    volumes:
+      - jaeger_data:/badger
     ports:
       # UI port bound to localhost
       - "127.0.0.1:16686:16686"
@@ -187,6 +209,68 @@ services:
         limits: { cpus: "0.5", memory: "512M" }
     restart: unless-stopped
 
+  alertmanager:
+    image: prom/alertmanager:v0.27.0
+    container_name: alertmanager
+    volumes:
+      - ./alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+    command:
+      - "--config.file=/etc/alertmanager/alertmanager.yml"
+      - "--storage.path=/alertmanager"
+    ports:
+      - "127.0.0.1:9093:9093"
+    networks:
+      - internal-net
+    deploy:
+      resources:
+        limits: { cpus: "0.25", memory: "128M" }
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:9093/-/healthy"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  postgres-exporter:
+    image: prom/postgres-exporter:v0.15.0
+    container_name: postgres-exporter
+    environment:
+      DATA_SOURCE_NAME: "postgresql://admin:${POSTGRES_ADMIN_PASSWORD}@postgres:5432/postgres?sslmode=disable"
+    networks:
+      - internal-net
+    depends_on:
+      postgres:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits: { cpus: "0.25", memory: "64M" }
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:9187/metrics"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  redis-exporter:
+    image: oliver006/redis_exporter:v1.62.0
+    container_name: redis-exporter
+    environment:
+      REDIS_ADDR: "redis://redis:6379"
+      REDIS_PASSWORD: "${REDIS_PASSWORD}"
+    networks:
+      - internal-net
+    depends_on:
+      - redis
+    deploy:
+      resources:
+        limits: { cpus: "0.25", memory: "64M" }
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:9121/metrics"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
 volumes:
   pg_data:
   redis_data:
@@ -194,3 +278,4 @@ volumes:
   grafana_data:
   loki_data:
   promtail_positions:
+  jaeger_data:
