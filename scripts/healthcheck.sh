@@ -53,7 +53,7 @@ fi
 
 # 7. Check Redis
 echo -n "Checking Redis: "
-if docker compose exec -T redis redis-cli ping | grep -q "PONG"; then
+if docker compose exec -T redis redis-cli -a "${REDIS_PASSWORD}" ping 2>/dev/null | grep -q "PONG"; then
     echo "✅ UP"
 else
     echo "❌ DOWN"

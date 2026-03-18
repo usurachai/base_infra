@@ -77,7 +77,11 @@ services:
     ports:
       - "127.0.0.1:6379:6379"
     command: >
-      --requirepass ${REDIS_PASSWORD} --maxmemory 512mb --maxmemory-policy allkeys-lru
+      --requirepass ${REDIS_PASSWORD}
+      --maxmemory 512mb
+      --maxmemory-policy allkeys-lru
+      --appendonly yes
+      --appendfsync everysec
     volumes:
       - redis_data:/data
     networks:
